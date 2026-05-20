@@ -10,7 +10,9 @@
       "Bash(git -C \"c:\\\\Github\\\\Record-Forge\" status --short)",
       "Bash(git -C \"c:\\\\Github\\\\Record-Forge\" branch --show-current)",
       "Bash(gh auth *)",
-      "PowerShell($gh = Get-Command gh -ErrorAction SilentlyContinue; if \\($gh\\) { \"gh: $\\($gh.Source\\)\"; gh auth status } else { \"gh: NOT INSTALLED\" }; \"---\"; git -C \"c:\\\\Github\\\\Record-Forge\" config --get credential.helper)"
+      "PowerShell($gh = Get-Command gh -ErrorAction SilentlyContinue; if \\($gh\\) { \"gh: $\\($gh.Source\\)\"; gh auth status } else { \"gh: NOT INSTALLED\" }; \"---\"; git -C \"c:\\\\Github\\\\Record-Forge\" config --get credential.helper)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }
