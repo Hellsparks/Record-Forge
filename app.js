@@ -44,7 +44,7 @@ const DEFAULTS = {
   artArea: 'whole', innerRadius: 0.62,
   palette: 'crate',
   vinylColor: '#2c2622', grooves: true, grooveColor: '#f3e4c4', grooveOpacity: 0.12,
-  borderToggle: true, borderColor: '#e7d3a6', borderWidth: 0.022,
+  borderToggle: false, borderColor: '#e7d3a6', borderWidth: 0.022,
   labelToggle: true, labelColor: '#cf9d5a', labelSize: 0.17, labelRings: true,
   spindle: false, spindleSize: 0.012,
   artist: 'Artist Name', artistFont: 'serif', artistSize: 0.045,
