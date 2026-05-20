@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Record Forge — LP art generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>Record&nbsp;Forge</h1>
+          <p class="tagline">Design printable LP record art &mdash; export a circular PNG for HueForge.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ============ PREVIEW ============ -->
+      <section class="stage">
+        <div class="canvas-wrap" id="stageDrop">
+          <canvas id="canvas" width="1600" height="1600"></canvas>
+        </div>
+
+        <div class="export-bar">
+          <label class="inline">
+            <span>Export size</span>
+            <select id="exportSize">
+              <option value="1024">1024 px</option>
+              <option value="2048" selected>2048 px</option>
+              <option value="3000">3000 px</option>
+            </select>
+          </label>
+          <button class="btn primary" id="downloadPng" type="button">Download circular PNG</button>
+          <button class="btn" id="downloadZip" type="button">Download project (.zip)</button>
+        </div>
+        <p class="status" id="status">Tip: drag the art, text, code &amp; badges right on the canvas to arrange them.</p>
+      </section>
+
+      <!-- ============ CONTROLS ============ -->
+      <section class="panel">
+
+        <details class="group" open>
+          <summary>Project</summary>
+          <div class="group-body">
+            <div class="field">
+              <label for="projectName">Project name</label>
+              <input type="text" id="projectName" placeholder="My LP" />
+            </div>
+            <div class="field">
+              <label for="imageInput">Upload album art</label>
+              <input type="file" id="imageInput" accept="image/*" />
+            </div>
+            <div class="field">
+              <label for="projectInput">Load project (.zip or .json)</label>
+              <input type="file" id="projectInput" accept=".zip,.json,application/zip,application/json" />
+            </div>
+            <button class="btn ghost" id="resetBtn" type="button">Reset everything</button>
+          </div>
+        </details>
+
+        <details class="group" open>
+          <summary>Album art</summary>
+          <div class="group-body">
+            <div class="field">
+              <label for="scale">Scale <output id="scale-rv"></output></label>
+              <input type="range" id="scale" min="0.2" max="3" step="0.01" value="1" />
+            </div>
+            <div class="field">
+              <label for="rotate">Rotate <output id="rotate-rv"></output></label>
+              <input type="range" id="rotate" min="-180" max="180" step="1" value="0" />
+            </div>
+            <div class="btn-row">
+              <button class="toggle" id="flipH" type="button">Flip horizontal</button>
+              <button class="toggle" id="flipV" type="button">Flip vertical</button>
+            </div>
+            <div class="field">
+              <label for="brightness">Brightness <output id="brightness-rv"></output></label>
+              <input type="range" id="brightness" min="0.3" max="2" step="0.01" value="1" />
+            </div>
+            <div class="field">
+              <label for="contrast">Contrast <output id="contrast-rv"></output></label>
+              <input type="range" id="contrast" min="0.3" max="2" step="0.01" value="1" />
+            </div>
+            <div class="field">
+              <label for="saturate">Saturation <output id="saturate-rv"></output></label>
+              <input type="range" id="saturate" min="0" max="2" step="0.01" value="1" />
+            </div>
+            <div class="field">
+              <label for="sepia">Vintage / sepia <output id="sepia-rv"></output></label>
+              <input type="range" id="sepia" min="0" max="1" step="0.01" value="0" />
+            </div>
+            <button class="btn ghost" id="centerArt" type="button">Re-center art</button>
+            <p class="hint">Drag the art directly on the canvas to position it. To crop, zoom in with Scale and drag &mdash; the circular frame trims the rest.</p>
+            <div class="field row">
+              <label for="artArea">Art fills</label>
+              <select id="artArea">
+                <option value="whole">The whole record</option>
+                <option value="inner">An inner circle only</option>
+              </select>
+            </div>
+            <div class="field" data-when="artArea=inner">
+              <label for="innerRadius">Inner circle size <output id="innerRadius-rv"></output></label>
+              <input type="range" id="innerRadius" min="0.25" max="0.92" step="0.01" value="0.62" />
+            </div>
+          </div>
+        </details>
+
+        <details class="group" open>
+          <summary>Record &amp; grooves</summary>
+          <div class="group-body">
+            <div class="field row">
+              <label for="palette">Shop palette</label>
+              <select id="palette">
+                <option value="crate">Dusty Crate</option>
+                <option value="sage">Sage Sleeve</option>
+                <option value="rose">Faded Rose</option>
+                <option value="mustard">Mustard 45</option>
+                <option value="midnight">Midnight Press</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field row">
+              <label for="vinylColor">Vinyl (black part)</label>
+              <input type="color" id="vinylColor" value="#2c2622" />
+            </div>
+            <div class="field row">
+              <label for="grooves">Show faint grooves</label>
+              <input type="checkbox" id="grooves" checked />
+            </div>
+            <div class="field row" data-when="grooves">
+              <label for="grooveColor">Groove colour</label>
+              <input type="color" id="grooveColor" value="#f3e4c4" />
+            </div>
+            <div class="field" data-when="grooves">
+              <label for="grooveOpacity">Groove strength <output id="grooveOpacity-rv"></output></label>
+              <input type="range" id="grooveOpacity" min="0" max="0.5" step="0.01" value="0.12" />
+            </div>
+            <div class="field row">
+              <label for="borderToggle">Show border ring</label>
+              <input type="checkbox" id="borderToggle" checked />
+            </div>
+            <div class="field row" data-when="borderToggle">
+              <label for="borderColor">Border colour</label>
+              <input type="color" id="borderColor" value="#e7d3a6" />
+            </div>
+            <div class="field" data-when="borderToggle">
+              <label for="borderWidth">Border width <output id="borderWidth-rv"></output></label>
+              <input type="range" id="borderWidth" min="0.004" max="0.06" step="0.001" value="0.022" />
+            </div>
+          </div>
+        </details>
+
+        <details class="group" open>
+          <summary>Centre &amp; spindle</summary>
+          <div class="group-body">
+            <div class="field row">
+              <label for="labelToggle">Solid centre label</label>
+              <input type="checkbox" id="labelToggle" checked />
+            </div>
+            <p class="hint">Turn the centre label off to leave the centre black &mdash; more room for album art.</p>
+            <div class="field row" data-when="labelToggle">
+              <label for="labelColor">Centre colour</label>
+              <input type="color" id="labelColor" value="#cf9d5a" />
+            </div>
+            <div class="field" data-when="labelToggle">
+              <label for="labelSize">Centre size <output id="labelSize-rv"></output></label>
+              <input type="range" id="labelSize" min="0.08" max="0.32" step="0.005" value="0.17" />
+            </div>
+            <div class="field row" data-when="labelToggle">
+              <label for="labelRings">Faint rings on centre</label>
+              <input type="checkbox" id="labelRings" checked />
+            </div>
+            <div class="field row">
+              <label for="spindle">Spindle hole (centre cutout)</label>
+              <input type="checkbox" id="spindle" />
+            </div>
+            <div class="field" data-when="spindle">
+              <label for="spindleSize">Spindle size <output id="spindleSize-rv"></output></label>
+              <input type="range" id="spindleSize" min="0.004" max="0.04" step="0.001" value="0.012" />
+            </div>
+          </div>
+        </details>
+
+        <details class="group">
+          <summary>Artist text</summary>
+          <div class="group-body">
+            <div class="field">
+              <label for="artist">Artist name</label>
+              <input type="text" id="artist" placeholder="Artist name" />
+            </div>
+            <div class="field row">
+              <label for="artistFont">Font</label>
+              <select id="artistFont">
+                <option value="serif">Serif (classic)</option>
+                <option value="display">Vintage display</option>
+                <option value="sans">Modern sans</option>
+                <option value="condensed">Condensed</option>
+                <option value="mono">Typewriter</option>
+                <option value="script">Handwritten</option>
+              </select>
+            </div>
+            <div class="field row">
+              <label for="artistAlign">Alignment</label>
+              <select id="artistAlign">
+                <option value="left">Left</option>
+                <option value="center" selected>Centre</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="artistSize">Size <output id="artistSize-rv"></output></label>
+              <input type="range" id="artistSize" min="0.018" max="0.09" step="0.001" value="0.045" />
+            </div>
+            <div class="field row">
+              <label for="artistColor">Colour</label>
+              <input type="color" id="artistColor" value="#3a2c1d" />
+            </div>
+            <div class="field">
+              <label>Quick place</label>
+              <div class="pad" data-pad="artist"></div>
+            </div>
+            <p class="hint">Drag the artist text on the canvas to move it freely.</p>
+          </div>
+        </details>
+
+        <details class="group">
+          <summary>Album text</summary>
+          <div class="group-body">
+            <div class="field">
+              <label for="album">Album title</label>
+              <input type="text" id="album" placeholder="Album title" />
+            </div>
+            <div class="field row">
+              <label for="albumFont">Font</label>
+              <select id="albumFont">
+                <option value="serif">Serif (classic)</option>
+                <option value="display">Vintage display</option>
+                <option value="sans">Modern sans</option>
+                <option value="condensed">Condensed</option>
+                <option value="mono">Typewriter</option>
+                <option value="script">Handwritten</option>
+              </select>
+            </div>
+            <div class="field row">
+              <label for="albumAlign">Alignment</label>
+              <select id="albumAlign">
+                <option value="left">Left</option>
+                <option value="center" selected>Centre</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="albumSize">Size <output id="albumSize-rv"></output></label>
+              <input type="range" id="albumSize" min="0.018" max="0.09" step="0.001" value="0.03" />
+            </div>
+            <div class="field row">
+              <label for="albumColor">Colour</label>
+              <input type="color" id="albumColor" value="#3a2c1d" />
+            </div>
+            <div class="field">
+              <label>Quick place</label>
+              <div class="pad" data-pad="album"></div>
+            </div>
+            <p class="hint">Drag the album text on the canvas to move it freely.</p>
+          </div>
+        </details>
+
+        <details class="group">
+          <summary>Scannable code</summary>
+          <div class="group-body">
+            <div class="field">
+              <label for="link">Link / URL <span class="link-type" id="linkType">&mdash;</span></label>
+              <input type="text" id="link" placeholder="Paste a Spotify, YouTube, Tidal&hellip; link" />
+            </div>
+            <div class="field row">
+              <label for="codeStyle">Code style</label>
+              <select id="codeStyle">
+                <option value="qr">QR code</option>
+                <option value="spotify">Spotify Code (soundwave)</option>
+              </select>
+            </div>
+            <p class="hint">Spotify Code needs a Spotify link &amp; internet. Other links fall back to a QR code automatically.</p>
+            <div class="field row">
+              <label for="codeColor">Code colour</label>
+              <input type="color" id="codeColor" value="#2c2622" />
+            </div>
+            <div class="field row">
+              <label for="codeBacking">Backing panel (scannability)</label>
+              <input type="checkbox" id="codeBacking" checked />
+            </div>
+            <div class="field row" data-when="codeBacking">
+              <label for="codeBackColor">Backing colour</label>
+              <input type="color" id="codeBackColor" value="#f1e3c4" />
+            </div>
+            <div class="field">
+              <label for="codeSize">Code size <output id="codeSize-rv"></output></label>
+              <input type="range" id="codeSize" min="0.1" max="0.42" step="0.005" value="0.2" />
+            </div>
+            <div class="field">
+              <label>Quick place</label>
+              <div class="pad" data-pad="code"></div>
+            </div>
+            <p class="hint">Drag the code on the canvas to position it freely.</p>
+          </div>
+        </details>
+
+        <details class="group">
+          <summary>Badges</summary>
+          <div class="group-body">
+            <div class="field row">
+              <label for="badgeSpotify">Spotify badge</label>
+              <input type="checkbox" id="badgeSpotify" />
+            </div>
+            <div class="field row">
+              <label for="badgeYouTube">YouTube badge</label>
+              <input type="checkbox" id="badgeYouTube" />
+            </div>
+            <div class="field row">
+              <label for="badgeTidal">Tidal badge</label>
+              <input type="checkbox" id="badgeTidal" />
+            </div>
+            <div class="field row">
+              <label for="badgeCustomToggle">Custom badge</label>
+              <input type="checkbox" id="badgeCustomToggle" />
+            </div>
+            <div class="field" data-when="badgeCustomToggle">
+              <label for="badgeCustomText">Custom badge text</label>
+              <input type="text" id="badgeCustomText" placeholder="e.g. LP" maxlength="3" />
+            </div>
+            <div class="field row">
+              <label for="badgeColor">Badge colour</label>
+              <input type="color" id="badgeColor" value="#f1e3c4" />
+            </div>
+            <div class="field">
+              <label for="badgeSize">Badge size <output id="badgeSize-rv"></output></label>
+              <input type="range" id="badgeSize" min="0.03" max="0.09" step="0.002" value="0.055" />
+            </div>
+            <div class="field">
+              <label>Quick place</label>
+              <div class="pad" data-pad="badge"></div>
+            </div>
+            <p class="hint">Drag the badges on the canvas to reposition them. Logos auto-contrast against the badge colour.</p>
+          </div>
+        </details>
+
+      </section>
+    </main>
+
+    <footer class="foot">
+      Runs fully in your browser &mdash; nothing is uploaded. Ready to host on GitHub Pages.
+    </footer>
+  </div>
+</body>
+</html>

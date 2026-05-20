@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check app.js)",
+      "Bash(node -e \"try{require\\('playwright'\\);console.log\\('playwright OK'\\)}catch\\(e\\){console.log\\('no playwright'\\)}\")",
+      "Bash(node -e \"try{require\\('puppeteer'\\);console.log\\('puppeteer OK'\\)}catch\\(e\\){console.log\\('no puppeteer'\\)}\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "Bash(git -C \"c:\\\\Github\\\\Record-Forge\" remote -v)",
+      "Bash(git -C \"c:\\\\Github\\\\Record-Forge\" status --short)",
+      "Bash(git -C \"c:\\\\Github\\\\Record-Forge\" branch --show-current)",
+      "Bash(gh auth *)",
+      "PowerShell($gh = Get-Command gh -ErrorAction SilentlyContinue; if \\($gh\\) { \"gh: $\\($gh.Source\\)\"; gh auth status } else { \"gh: NOT INSTALLED\" }; \"---\"; git -C \"c:\\\\Github\\\\Record-Forge\" config --get credential.helper)"
+    ]
+  }
+}
