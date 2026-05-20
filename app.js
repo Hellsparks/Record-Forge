@@ -307,13 +307,13 @@ function makeQR(text) {
       margin: 1,
       width: 700,
       errorCorrectionLevel: 'M',
-      color: { dark: state.codeColor, light: state.codeBacking ? state.codeBackColor : 'rgba(255,255,255,0)' },
+      color: { dark: state.codeColor, light: state.codeBackColor },
     }, (err) => (err ? rej(err) : res(c)));
   });
 }
 
 async function fetchSpotifyCode(uri) {
-  const bg = state.codeBacking ? state.codeBackColor : '#ffffff';
+  const bg = state.codeBackColor;
   const bar = luminance(bg) < 0.5 ? 'white' : 'black';
   const url = `https://scannables.scdn.co/uri/plain/png/${bg.replace('#', '')}/${bar}/640/${uri}`;
   const res = await fetch(url);
