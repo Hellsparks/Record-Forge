@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
@@ -33,6 +33,10 @@
 
         <div class="export-bar">
           <label class="inline">
+            <input type="checkbox" id="snap" checked />
+            <span>Snap to align</span>
+          </label>
+          <label class="inline">
             <span>Export size</span>
             <select id="exportSize">
               <option value="1024">1024 px</option>
@@ -43,6 +47,7 @@
           <button class="btn primary" id="downloadPng" type="button">Download circular PNG</button>
           <button class="btn" id="downloadZip" type="button">Download project (.zip)</button>
         </div>
+        <p class="hint" style="margin:10px 2px 0;">A standard 12&Prime; LP is <strong>305 mm</strong> across. Set your HueForge print diameter to <strong>305 mm</strong> for a true 1:1 vinyl print. &mdash; Press <kbd>Ctrl+Z</kbd> to undo a move.</p>
         <p class="status" id="status">Tip: drag the art, text, code &amp; badges right on the canvas to arrange them.</p>
       </section>
 
@@ -225,11 +230,35 @@
               <label for="artistColor">Colour</label>
               <input type="color" id="artistColor" value="#3a2c1d" />
             </div>
-            <div class="field">
+            <div class="field row">
+              <label for="artistWrap">Wrap long text</label>
+              <input type="checkbox" id="artistWrap" />
+            </div>
+            <div class="field" data-when="artistWrap">
+              <label for="artistWrapWidth">Wrap width <output id="artistWrapWidth-rv"></output></label>
+              <input type="range" id="artistWrapWidth" min="0.2" max="0.9" step="0.01" value="0.55" />
+            </div>
+            <div class="field row">
+              <label for="artistArc">Curve along record</label>
+              <input type="checkbox" id="artistArc" />
+            </div>
+            <div class="field row" data-when="artistArc">
+              <label for="artistArcSide">Arc side</label>
+              <select id="artistArcSide">
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+            <div class="field" data-when="artistArc">
+              <label for="artistArcRadius">Arc radius <output id="artistArcRadius-rv"></output></label>
+              <input type="range" id="artistArcRadius" min="0.35" max="0.97" step="0.01" value="0.72" />
+            </div>
+            <div class="field" data-when="!artistArc">
               <label>Quick place</label>
               <div class="pad" data-pad="artist"></div>
             </div>
-            <p class="hint">Drag the artist text on the canvas to move it freely.</p>
+            <p class="hint" data-when="!artistArc">Drag the artist text on the canvas to move it freely.</p>
+            <p class="hint" data-when="artistArc">Use Arc radius to move the text ring closer to or further from the centre.</p>
           </div>
         </details>
 
@@ -267,11 +296,35 @@
               <label for="albumColor">Colour</label>
               <input type="color" id="albumColor" value="#3a2c1d" />
             </div>
-            <div class="field">
+            <div class="field row">
+              <label for="albumWrap">Wrap long text</label>
+              <input type="checkbox" id="albumWrap" />
+            </div>
+            <div class="field" data-when="albumWrap">
+              <label for="albumWrapWidth">Wrap width <output id="albumWrapWidth-rv"></output></label>
+              <input type="range" id="albumWrapWidth" min="0.2" max="0.9" step="0.01" value="0.55" />
+            </div>
+            <div class="field row">
+              <label for="albumArc">Curve along record</label>
+              <input type="checkbox" id="albumArc" />
+            </div>
+            <div class="field row" data-when="albumArc">
+              <label for="albumArcSide">Arc side</label>
+              <select id="albumArcSide">
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+            <div class="field" data-when="albumArc">
+              <label for="albumArcRadius">Arc radius <output id="albumArcRadius-rv"></output></label>
+              <input type="range" id="albumArcRadius" min="0.35" max="0.97" step="0.01" value="0.78" />
+            </div>
+            <div class="field" data-when="!albumArc">
               <label>Quick place</label>
               <div class="pad" data-pad="album"></div>
             </div>
-            <p class="hint">Drag the album text on the canvas to move it freely.</p>
+            <p class="hint" data-when="!albumArc">Drag the album text on the canvas to move it freely.</p>
+            <p class="hint" data-when="albumArc">Use Arc radius to move the text ring closer to or further from the centre.</p>
           </div>
         </details>
 

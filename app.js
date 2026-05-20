@@ -49,14 +49,19 @@ const DEFAULTS = {
   spindle: false, spindleSize: 0.012,
   artist: 'Artist Name', artistFont: 'serif', artistSize: 0.045,
   artistColor: '#3a2c1d', artistAlign: 'center', artistX: 0, artistY: -0.03,
+  artistWrap: false, artistWrapWidth: 0.55,
+  artistArc: false, artistArcSide: 'top', artistArcRadius: 0.72,
   album: 'Album Title', albumFont: 'serif', albumSize: 0.03,
   albumColor: '#3a2c1d', albumAlign: 'center', albumX: 0, albumY: 0.035,
+  albumWrap: false, albumWrapWidth: 0.55,
+  albumArc: false, albumArcSide: 'top', albumArcRadius: 0.78,
   link: '', codeStyle: 'qr', codeColor: '#2c2622',
   codeBacking: true, codeBackColor: '#f1e3c4', codeSize: 0.2, codeX: 0, codeY: 0.3,
   badgeSpotify: false, badgeYouTube: false, badgeTidal: false,
   badgeCustomToggle: false, badgeCustomText: '', badgeColor: '#f1e3c4',
   badgeSize: 0.055, badgeX: 0, badgeY: 0.17,
   exportSize: 2048,
+  snap: true,
 };
 
 /* Fields driven by a single binding loop. disp = how the range value reads. */
@@ -89,11 +94,21 @@ const FIELDS = [
   { id: 'artistAlign',       key: 'artistAlign',       t: 'str'  },
   { id: 'artistSize',        key: 'artistSize',        t: 'num', disp: 'pct' },
   { id: 'artistColor',       key: 'artistColor',       t: 'str'  },
+  { id: 'artistWrap',        key: 'artistWrap',        t: 'bool' },
+  { id: 'artistWrapWidth',   key: 'artistWrapWidth',   t: 'num', disp: 'pct' },
+  { id: 'artistArc',         key: 'artistArc',         t: 'bool' },
+  { id: 'artistArcSide',     key: 'artistArcSide',     t: 'str'  },
+  { id: 'artistArcRadius',   key: 'artistArcRadius',   t: 'num', disp: 'pct' },
   { id: 'album',             key: 'album',             t: 'str'  },
   { id: 'albumFont',         key: 'albumFont',         t: 'str'  },
   { id: 'albumAlign',        key: 'albumAlign',        t: 'str'  },
   { id: 'albumSize',         key: 'albumSize',         t: 'num', disp: 'pct' },
   { id: 'albumColor',        key: 'albumColor',        t: 'str'  },
+  { id: 'albumWrap',         key: 'albumWrap',         t: 'bool' },
+  { id: 'albumWrapWidth',    key: 'albumWrapWidth',    t: 'num', disp: 'pct' },
+  { id: 'albumArc',          key: 'albumArc',          t: 'bool' },
+  { id: 'albumArcSide',      key: 'albumArcSide',      t: 'str'  },
+  { id: 'albumArcRadius',    key: 'albumArcRadius',    t: 'num', disp: 'pct' },
   { id: 'link',              key: 'link',              t: 'str'  },
   { id: 'codeStyle',         key: 'codeStyle',         t: 'str'  },
   { id: 'codeColor',         key: 'codeColor',         t: 'str'  },
@@ -108,16 +123,37 @@ const FIELDS = [
   { id: 'badgeColor',        key: 'badgeColor',        t: 'str'  },
   { id: 'badgeSize',         key: 'badgeSize',         t: 'num', disp: 'pct' },
   { id: 'exportSize',        key: 'exportSize',        t: 'num' },
+  { id: 'snap',              key: 'snap',              t: 'bool' },
 ];
 
 const COLOR_KEYS = ['vinylColor', 'labelColor', 'borderColor', 'grooveColor', 'artistColor', 'albumColor', 'codeColor', 'codeBackColor'];
 const CODE_KEYS  = ['link', 'codeStyle', 'codeColor', 'codeBacking', 'codeBackColor'];
 
+/* ---------- Undo stack (position moves only) ---------------------- */
+
+const POSITION_KEYS = ['artX','artY','artistX','artistY','albumX','albumY','codeX','codeY','badgeX','badgeY'];
+const undoStack = [];
+
+function pushUndo() {
+  const snap = {};
+  for (const k of POSITION_KEYS) snap[k] = state[k];
+  undoStack.push(snap);
+  if (undoStack.length > 20) undoStack.shift();
+}
+
+function popUndo() {
+  const snap = undoStack.pop();
+  if (!snap) { setStatus('Nothing to undo.'); return; }
+  for (const k of POSITION_KEYS) state[k] = snap[k];
+  requestRender();
+  setStatus('Undone.');
+}
+
 let state = freshState();
 function freshState() {
   return Object.assign({}, structuredClone(DEFAULTS), {
     image: null, imageBlob: null, imageName: null, code: null,
-    _active: null, _hover: null,
+    _active: null, _hover: null, _snapGuides: [],
   });
 }
 
@@ -154,6 +190,58 @@ function luminance(hex) {
   const [r, g, b] = rgb(hex);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [text];
+}
+
+function drawArcText(ctx, txt, cx, cy, arcR, side, fs) {
+  const chars = [...txt];
+  if (!chars.length) return;
+  const spacingExtra = fs * 0.06;
+  const charWidths = chars.map((ch) => ctx.measureText(ch).width + spacingExtra);
+  const totalLen = charWidths.reduce((a, b) => a + b, 0) - spacingExtra;
+  const totalAngle = totalLen / arcR;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  if (side === 'top') {
+    let theta = -Math.PI / 2 - totalAngle / 2;
+    for (let i = 0; i < chars.length; i++) {
+      const mid = theta + charWidths[i] / arcR / 2;
+      ctx.save();
+      ctx.translate(cx + Math.cos(mid) * arcR, cy + Math.sin(mid) * arcR);
+      ctx.rotate(mid + Math.PI / 2);
+      ctx.fillText(chars[i], 0, 0);
+      ctx.restore();
+      theta += charWidths[i] / arcR;
+    }
+  } else {
+    // bottom arc — counterclockwise so text reads left-to-right
+    let theta = Math.PI / 2 + totalAngle / 2;
+    for (let i = 0; i < chars.length; i++) {
+      const mid = theta - charWidths[i] / arcR / 2;
+      ctx.save();
+      ctx.translate(cx + Math.cos(mid) * arcR, cy + Math.sin(mid) * arcR);
+      ctx.rotate(mid - Math.PI / 2);
+      ctx.fillText(chars[i], 0, 0);
+      ctx.restore();
+      theta -= charWidths[i] / arcR;
+    }
+  }
+}
+
 function mix(hex1, hex2, t) {
   const a = rgb(hex1), b = rgb(hex2);
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
@@ -219,7 +307,7 @@ function makeQR(text) {
       margin: 1,
       width: 700,
       errorCorrectionLevel: 'M',
-      color: { dark: state.codeColor, light: state.codeBacking ? state.codeBackColor : '#ffffff00' },
+      color: { dark: state.codeColor, light: state.codeBacking ? state.codeBackColor : 'rgba(255,255,255,0)' },
     }, (err) => (err ? rej(err) : res(c)));
   });
 }
@@ -330,8 +418,9 @@ function renderScene(ctx, S, opts) {
   // 9. Spindle hole — punches a real transparent cutout, so it goes last
   if (state.spindle) drawSpindle(ctx, S, G);
 
-  // 10. Placement cue & selection outline (preview only)
+  // 10. Placement cue, snap guides & selection outline (preview only)
   if (!state.image && !opts.isExport) drawPlaceholder(ctx, S, G);
+  if (!opts.isExport) drawGuides(ctx, S, G);
   if (!opts.isExport) drawHighlight(ctx, S, G);
 }
 
@@ -405,25 +494,48 @@ function drawTextLine(ctx, S, G, g, prefix) {
   const txt = state[prefix];
   const fs = state[prefix + 'Size'] * S;
   const fam = FONTS[state[prefix + 'Font']] || FONTS.serif;
-  const cx = G.cx + state[prefix + 'X'] * S;
-  const cy = G.cy + state[prefix + 'Y'] * S;
   const weight = prefix === 'artist' ? 600 : 500;
 
   ctx.save();
   ctx.font = `${weight} ${fs}px ${fam}`;
-  const w = ctx.measureText(txt).width;
-  const align = state[prefix + 'Align'];
-  let ax;
-  if (align === 'left')       { ax = cx - w / 2; ctx.textAlign = 'left'; }
-  else if (align === 'right') { ax = cx + w / 2; ctx.textAlign = 'right'; }
-  else                        { ax = cx; ctx.textAlign = 'center'; }
   ctx.globalAlpha = g;
   ctx.fillStyle = state[prefix + 'Color'];
-  ctx.textBaseline = 'middle';
-  ctx.fillText(txt, ax, cy);
-  ctx.restore();
 
-  pushHit(prefix, cx, cy, Math.max(w / 2, fs * 0.5) + S * 0.012, fs * 0.64 + S * 0.012);
+  if (state[prefix + 'Arc']) {
+    const arcR = state[prefix + 'ArcRadius'] * G.recordR;
+    drawArcText(ctx, txt, G.cx, G.cy, arcR, state[prefix + 'ArcSide'], fs);
+    // no drag hitbox for arc text; position is slider-controlled
+  } else if (state[prefix + 'Wrap']) {
+    const maxW = state[prefix + 'WrapWidth'] * S;
+    const lines = wrapText(ctx, txt, maxW);
+    const lineH = fs * 1.3;
+    const cx = G.cx + state[prefix + 'X'] * S;
+    const cy = G.cy + state[prefix + 'Y'] * S;
+    const totalH = lines.length * lineH;
+    const align = state[prefix + 'Align'];
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = align;
+    const ax = align === 'left' ? cx - maxW / 2 : align === 'right' ? cx + maxW / 2 : cx;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, ax, cy - totalH / 2 + lineH / 2 + i * lineH);
+    });
+    const measuredW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    pushHit(prefix, cx, cy, Math.max(measuredW / 2, fs * 0.5) + S * 0.012, totalH / 2 + S * 0.012);
+  } else {
+    const cx = G.cx + state[prefix + 'X'] * S;
+    const cy = G.cy + state[prefix + 'Y'] * S;
+    const w = ctx.measureText(txt).width;
+    const align = state[prefix + 'Align'];
+    let ax;
+    if (align === 'left')       { ax = cx - w / 2; ctx.textAlign = 'left'; }
+    else if (align === 'right') { ax = cx + w / 2; ctx.textAlign = 'right'; }
+    else                        { ax = cx; ctx.textAlign = 'center'; }
+    ctx.textBaseline = 'middle';
+    ctx.fillText(txt, ax, cy);
+    pushHit(prefix, cx, cy, Math.max(w / 2, fs * 0.5) + S * 0.012, fs * 0.64 + S * 0.012);
+  }
+
+  ctx.restore();
 }
 
 function drawCode(ctx, S, G, g) {
@@ -737,7 +849,9 @@ function updateLinkType() {
 
 function updateConditional() {
   document.querySelectorAll('[data-when]').forEach((el) => {
-    const cond = el.dataset.when;
+    let cond = el.dataset.when;
+    const negate = cond.startsWith('!');
+    if (negate) cond = cond.slice(1);
     let show;
     if (cond.includes('=')) {
       const [k, v] = cond.split('=');
@@ -745,6 +859,7 @@ function updateConditional() {
     } else {
       show = !!state[cond];
     }
+    if (negate) show = !show;
     el.classList.toggle('hidden', !show);
   });
 }
@@ -812,12 +927,15 @@ function bindControls() {
   $('downloadPng').addEventListener('click', () => exportPNG().catch((e) => setStatus('Export failed: ' + e.message)));
   $('downloadZip').addEventListener('click', () => exportZip().catch((e) => setStatus('Export failed: ' + e.message)));
 
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      popUndo();
+    }
+  });
+
   // ----- Drag art / text / code / badges directly on the canvas -----
   let drag = null;
-  const OFFSETS = {
-    art: ['artX', 'artY'], artist: ['artistX', 'artistY'], album: ['albumX', 'albumY'],
-    code: ['codeX', 'codeY'], badges: ['badgeX', 'badgeY'],
-  };
   const elementAt = (sx, sy) => {
     for (let i = hitboxes.length - 1; i >= 0; i--) {
       const b = hitboxes[i];
@@ -835,7 +953,10 @@ function bindControls() {
     const r = canvas.getBoundingClientRect();
     const el = elementAt((e.clientX - r.left) / r.width * PREVIEW_S, (e.clientY - r.top) / r.height * PREVIEW_S);
     if (!el) return;
-    drag = { el, x: e.clientX, y: e.clientY };
+    pushUndo();
+    const [kx0, ky0] = OFFSETS[el];
+    // nx/ny track the true (unsnapped) position so snap doesn't trap the element
+    drag = { el, x: e.clientX, y: e.clientY, nx: state[kx0], ny: state[ky0] };
     state._active = el;
     canvas.setPointerCapture(e.pointerId);
     requestRender();
@@ -843,9 +964,17 @@ function bindControls() {
   canvas.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
     if (drag) {
-      const [kx, ky] = OFFSETS[drag.el];
-      state[kx] = clamp(state[kx] + (e.clientX - drag.x) / r.width, -0.72, 0.72);
-      state[ky] = clamp(state[ky] + (e.clientY - drag.y) / r.height, -0.72, 0.72);
+      const arcMode = (drag.el === 'artist' && state.artistArc) ||
+                      (drag.el === 'album'  && state.albumArc);
+      if (!arcMode) {
+        const [kx, ky] = OFFSETS[drag.el];
+        drag.nx = clamp(drag.nx + (e.clientX - drag.x) / r.width,  -0.72, 0.72);
+        drag.ny = clamp(drag.ny + (e.clientY - drag.y) / r.height, -0.72, 0.72);
+        const { x: sx, y: sy, guides } = applySnap(drag.el, drag.nx, drag.ny);
+        state[kx] = sx;
+        state[ky] = sy;
+        state._snapGuides = guides;
+      }
       drag.x = e.clientX;
       drag.y = e.clientY;
       requestRender();
@@ -855,11 +984,12 @@ function bindControls() {
     canvas.style.cursor = el ? 'grab' : 'default';
     if (el !== state._hover) { state._hover = el; requestRender(); }
   });
-  const endDrag = () => { if (drag) { drag = null; state._active = null; requestRender(); } };
+  const endDrag = () => { if (drag) { drag = null; state._active = null; state._snapGuides = []; requestRender(); } };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => {
     if (state._hover) { state._hover = null; requestRender(); }
+    state._snapGuides = [];
     canvas.style.cursor = 'default';
   });
 
@@ -875,6 +1005,63 @@ function bindControls() {
     const file = [...e.dataTransfer.files].find((f) => /^image\//.test(f.type));
     if (file) setImageFromBlob(file, file.name);
   });
+}
+
+/* ---------- Drag-element key map (module scope for snap access) --- */
+
+const OFFSETS = {
+  art:    ['artX',    'artY'   ],
+  artist: ['artistX', 'artistY'],
+  album:  ['albumX',  'albumY' ],
+  code:   ['codeX',   'codeY'  ],
+  badges: ['badgeX',  'badgeY' ],
+};
+
+/* ---------- Snap-to-align ----------------------------------------- */
+
+const SNAP_T = 0.022; // threshold in relative coords (~35 px on 1600 px canvas)
+
+function applySnap(dragEl, nx, ny) {
+  if (!state.snap) return { x: nx, y: ny, guides: [] };
+  let sx = nx, sy = ny;
+  const guides = [];
+  let snX = false, snY = false;
+
+  // Build snap candidates: canvas centre + every other element's current position
+  const candidates = [{ x: 0, y: 0 }];
+  for (const [el, [kx, ky]] of Object.entries(OFFSETS)) {
+    if (el === dragEl) continue;
+    if ((el === 'artist' && state.artistArc) || (el === 'album' && state.albumArc)) continue;
+    candidates.push({ x: state[kx], y: state[ky] });
+  }
+
+  for (const c of candidates) {
+    if (!snX && Math.abs(nx - c.x) < SNAP_T) { sx = c.x; snX = true; guides.push({ axis: 'v', pos: c.x }); }
+    if (!snY && Math.abs(ny - c.y) < SNAP_T) { sy = c.y; snY = true; guides.push({ axis: 'h', pos: c.y }); }
+  }
+  return { x: sx, y: sy, guides };
+}
+
+function drawGuides(ctx, S, G) {
+  if (!state._snapGuides || !state._snapGuides.length) return;
+  ctx.save();
+  ctx.setLineDash([S * 0.012, S * 0.008]);
+  ctx.lineWidth = Math.max(1, S * 0.0018);
+  ctx.strokeStyle = 'rgba(74, 144, 226, 0.72)';
+  for (const g of state._snapGuides) {
+    ctx.beginPath();
+    if (g.axis === 'h') {
+      const y = G.cy + g.pos * S;
+      ctx.moveTo(G.cx - G.recordR, y);
+      ctx.lineTo(G.cx + G.recordR, y);
+    } else {
+      const x = G.cx + g.pos * S;
+      ctx.moveTo(x, G.cy - G.recordR);
+      ctx.lineTo(x, G.cy + G.recordR);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /* ---------- Quick-place anchor pads ------------------------------- */

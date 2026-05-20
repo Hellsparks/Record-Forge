@@ -184,7 +184,7 @@ h1 {
   grid-template-columns: 1fr auto;
   align-items: center;
 }
-.field.hidden { display: none; }
+.field.hidden, .hidden { display: none; }
 .field label, .inline span {
   font-size: .9rem;
   font-weight: 500;
@@ -243,6 +243,15 @@ input[type="checkbox"] {
   font-size: .8rem;
   color: var(--ink-soft);
   line-height: 1.45;
+}
+kbd {
+  font: inherit;
+  font-size: .78rem;
+  background: var(--card-2);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--ink);
 }
 
 /* ---------- Buttons ---------- */

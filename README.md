@@ -35,17 +35,32 @@ python -m http.server 8000
   and 5 soft "record shop" palette presets (or full custom colours).
 - **Centre** — toggle a solid colour label on/off (off = black centre, more room
   for art), plus an optional real spindle-hole cutout.
-- **Text** — artist and album fields, placed on or below the centre.
+- **Text** — separate artist and album fields with independent font, size, colour
+  and alignment. Three layout modes per field:
+  - *Straight* — single line, drag freely on the canvas.
+  - *Wrap* — long text breaks into multiple lines at an adjustable width.
+  - *Curve along record* — letters follow a circular arc at any radius; choose
+    top or bottom arc side.
 - **Scannable code** — paste any link; the type is auto-detected. Choose a
   **QR code** (always works, offline) or a real **Spotify Code** (needs a
   Spotify link + internet; falls back to QR automatically).
 - **Badges** — Spotify / YouTube / Tidal / custom icon badges, draggable with
   a custom badge colour.
 - **Free layout** — drag the album art, artist text, album text, code and
-  badges anywhere on the canvas, or snap them with the quick-place pads.
-- **Export** — a transparent-cornered circular PNG, or a `.zip` project bundle
-  (settings JSON + your original image + a rendered PNG) that you can re-load
-  later with *Load project*.
+  badges anywhere on the canvas, or snap them to a 9-point quick-place grid.
+- **Snap to align** — toggle smart snapping on/off. While dragging, elements
+  snap to the canvas centre and to the X/Y of every other element; a blue guide
+  line shows the active alignment axis. The true drag position is tracked
+  underneath so you can drag straight past a snap without getting stuck.
+- **Undo** — `Ctrl+Z` / `Cmd+Z` undoes the last drag move (up to 20 steps).
+- **Export** — a transparent-cornered circular PNG at 1024 / 2048 / 3000 px, or
+  a `.zip` project bundle (settings JSON + your original image + a rendered PNG)
+  that you can re-load later with *Load project*.
+
+## HueForge print size
+
+A standard 12″ LP vinyl record is **305 mm** in diameter. When printing in
+HueForge, set the print diameter to **305 mm** for a true 1:1 scale.
 
 ## Notes
 
