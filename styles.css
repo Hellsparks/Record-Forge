@@ -324,6 +324,26 @@ kbd {
 .pad-btn:hover { background: var(--card-2); }
 .pad-btn:hover::after { background: var(--terra); }
 
+/* ---------- Expert mode toggle ---------- */
+.expert-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 4px 0;
+}
+.expert-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .82rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+}
+.expert-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
 /* ---------- Footer ---------- */
 .foot {
   margin-top: 26px;

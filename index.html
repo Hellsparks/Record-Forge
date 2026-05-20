@@ -47,16 +47,30 @@
           <button class="btn primary" id="downloadPng" type="button">Download circular PNG</button>
           <button class="btn" id="downloadZip" type="button">Download project (.zip)</button>
         </div>
-        <p class="hint" style="margin:10px 2px 0;">A standard 12&Prime; LP is <strong>305 mm</strong> across. Set your HueForge print diameter to <strong>305 mm</strong> for a true 1:1 vinyl print. &mdash; Press <kbd>Ctrl+Z</kbd> to undo a move.</p>
+        <p class="hint" style="margin:10px 2px 0;">HueForge 1:1 print sizes &mdash; LP 12&Prime;: <strong>305 mm</strong> &middot; 7&Prime; Single: <strong>175 mm</strong> &middot; CD: <strong>120 mm</strong>. Press <kbd>Ctrl+Z</kbd> to undo a move.</p>
         <p class="status" id="status">Tip: drag the art, text, code &amp; badges right on the canvas to arrange them.</p>
       </section>
 
       <!-- ============ CONTROLS ============ -->
       <section class="panel">
+        <div class="expert-bar">
+          <label class="expert-label">
+            <input type="checkbox" id="expertMode" />
+            <span>Expert mode</span>
+          </label>
+        </div>
 
         <details class="group" open>
           <summary>Project</summary>
           <div class="group-body">
+            <div class="field row">
+              <label for="discType">Disc type</label>
+              <select id="discType">
+                <option value="lp">LP 12&Prime;</option>
+                <option value="single">7&Prime; Single</option>
+                <option value="cd">CD</option>
+              </select>
+            </div>
             <div class="field">
               <label for="projectName">Project name</label>
               <input type="text" id="projectName" placeholder="My LP" />
@@ -84,36 +98,36 @@
               <label for="rotate">Rotate <output id="rotate-rv"></output></label>
               <input type="range" id="rotate" min="-180" max="180" step="1" value="0" />
             </div>
-            <div class="btn-row">
+            <div class="btn-row" data-expert>
               <button class="toggle" id="flipH" type="button">Flip horizontal</button>
               <button class="toggle" id="flipV" type="button">Flip vertical</button>
             </div>
-            <div class="field">
+            <div class="field" data-expert>
               <label for="brightness">Brightness <output id="brightness-rv"></output></label>
               <input type="range" id="brightness" min="0.3" max="2" step="0.01" value="1" />
             </div>
-            <div class="field">
+            <div class="field" data-expert>
               <label for="contrast">Contrast <output id="contrast-rv"></output></label>
               <input type="range" id="contrast" min="0.3" max="2" step="0.01" value="1" />
             </div>
-            <div class="field">
+            <div class="field" data-expert>
               <label for="saturate">Saturation <output id="saturate-rv"></output></label>
               <input type="range" id="saturate" min="0" max="2" step="0.01" value="1" />
             </div>
-            <div class="field">
+            <div class="field" data-expert>
               <label for="sepia">Vintage / sepia <output id="sepia-rv"></output></label>
               <input type="range" id="sepia" min="0" max="1" step="0.01" value="0" />
             </div>
             <button class="btn ghost" id="centerArt" type="button">Re-center art</button>
             <p class="hint">Drag the art directly on the canvas to position it. To crop, zoom in with Scale and drag &mdash; the circular frame trims the rest.</p>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="artArea">Art fills</label>
               <select id="artArea">
                 <option value="whole">The whole record</option>
                 <option value="inner">An inner circle only</option>
               </select>
             </div>
-            <div class="field" data-when="artArea=inner">
+            <div class="field" data-when="artArea=inner" data-expert>
               <label for="innerRadius">Inner circle size <output id="innerRadius-rv"></output></label>
               <input type="range" id="innerRadius" min="0.25" max="0.92" step="0.01" value="0.62" />
             </div>
@@ -142,11 +156,11 @@
               <label for="grooves">Show faint grooves</label>
               <input type="checkbox" id="grooves" checked />
             </div>
-            <div class="field row" data-when="grooves">
+            <div class="field row" data-when="grooves" data-expert>
               <label for="grooveColor">Groove colour</label>
               <input type="color" id="grooveColor" value="#f3e4c4" />
             </div>
-            <div class="field" data-when="grooves">
+            <div class="field" data-when="grooves" data-expert>
               <label for="grooveOpacity">Groove strength <output id="grooveOpacity-rv"></output></label>
               <input type="range" id="grooveOpacity" min="0" max="0.5" step="0.01" value="0.12" />
             </div>
@@ -154,11 +168,11 @@
               <label for="borderToggle">Show border ring</label>
               <input type="checkbox" id="borderToggle" />
             </div>
-            <div class="field row" data-when="borderToggle">
+            <div class="field row" data-when="borderToggle" data-expert>
               <label for="borderColor">Border colour</label>
               <input type="color" id="borderColor" value="#e7d3a6" />
             </div>
-            <div class="field" data-when="borderToggle">
+            <div class="field" data-when="borderToggle" data-expert>
               <label for="borderWidth">Border width <output id="borderWidth-rv"></output></label>
               <input type="range" id="borderWidth" min="0.004" max="0.06" step="0.001" value="0.022" />
             </div>
@@ -181,7 +195,7 @@
               <label for="labelSize">Centre size <output id="labelSize-rv"></output></label>
               <input type="range" id="labelSize" min="0.08" max="0.32" step="0.005" value="0.17" />
             </div>
-            <div class="field row" data-when="labelToggle">
+            <div class="field row" data-when="labelToggle" data-expert>
               <label for="labelRings">Faint rings on centre</label>
               <input type="checkbox" id="labelRings" checked />
             </div>
@@ -191,7 +205,7 @@
             </div>
             <div class="field" data-when="spindle">
               <label for="spindleSize">Spindle size <output id="spindleSize-rv"></output></label>
-              <input type="range" id="spindleSize" min="0.004" max="0.04" step="0.001" value="0.012" />
+              <input type="range" id="spindleSize" min="0.004" max="0.14" step="0.001" value="0.012" />
             </div>
           </div>
         </details>
@@ -203,7 +217,7 @@
               <label for="artist">Artist name</label>
               <input type="text" id="artist" placeholder="Artist name" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="artistFont">Font</label>
               <select id="artistFont">
                 <option value="serif">Serif (classic)</option>
@@ -214,7 +228,7 @@
                 <option value="script">Handwritten</option>
               </select>
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="artistAlign">Alignment</label>
               <select id="artistAlign">
                 <option value="left">Left</option>
@@ -230,26 +244,26 @@
               <label for="artistColor">Colour</label>
               <input type="color" id="artistColor" value="#3a2c1d" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="artistWrap">Wrap long text</label>
               <input type="checkbox" id="artistWrap" />
             </div>
-            <div class="field" data-when="artistWrap">
+            <div class="field" data-when="artistWrap" data-expert>
               <label for="artistWrapWidth">Wrap width <output id="artistWrapWidth-rv"></output></label>
               <input type="range" id="artistWrapWidth" min="0.2" max="0.9" step="0.01" value="0.55" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="artistArc">Curve along record</label>
               <input type="checkbox" id="artistArc" />
             </div>
-            <div class="field row" data-when="artistArc">
+            <div class="field row" data-when="artistArc" data-expert>
               <label for="artistArcSide">Arc side</label>
               <select id="artistArcSide">
                 <option value="top">Top</option>
                 <option value="bottom">Bottom</option>
               </select>
             </div>
-            <div class="field" data-when="artistArc">
+            <div class="field" data-when="artistArc" data-expert>
               <label for="artistArcRadius">Arc radius <output id="artistArcRadius-rv"></output></label>
               <input type="range" id="artistArcRadius" min="0.35" max="0.97" step="0.01" value="0.72" />
             </div>
@@ -258,7 +272,7 @@
               <div class="pad" data-pad="artist"></div>
             </div>
             <p class="hint" data-when="!artistArc">Drag the artist text on the canvas to move it freely.</p>
-            <p class="hint" data-when="artistArc">Use Arc radius to move the text ring closer to or further from the centre.</p>
+            <p class="hint" data-when="artistArc" data-expert>Use Arc radius to move the text ring closer to or further from the centre.</p>
           </div>
         </details>
 
@@ -269,7 +283,7 @@
               <label for="album">Album title</label>
               <input type="text" id="album" placeholder="Album title" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="albumFont">Font</label>
               <select id="albumFont">
                 <option value="serif">Serif (classic)</option>
@@ -280,7 +294,7 @@
                 <option value="script">Handwritten</option>
               </select>
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="albumAlign">Alignment</label>
               <select id="albumAlign">
                 <option value="left">Left</option>
@@ -296,26 +310,26 @@
               <label for="albumColor">Colour</label>
               <input type="color" id="albumColor" value="#3a2c1d" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="albumWrap">Wrap long text</label>
               <input type="checkbox" id="albumWrap" />
             </div>
-            <div class="field" data-when="albumWrap">
+            <div class="field" data-when="albumWrap" data-expert>
               <label for="albumWrapWidth">Wrap width <output id="albumWrapWidth-rv"></output></label>
               <input type="range" id="albumWrapWidth" min="0.2" max="0.9" step="0.01" value="0.55" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="albumArc">Curve along record</label>
               <input type="checkbox" id="albumArc" />
             </div>
-            <div class="field row" data-when="albumArc">
+            <div class="field row" data-when="albumArc" data-expert>
               <label for="albumArcSide">Arc side</label>
               <select id="albumArcSide">
                 <option value="top">Top</option>
                 <option value="bottom">Bottom</option>
               </select>
             </div>
-            <div class="field" data-when="albumArc">
+            <div class="field" data-when="albumArc" data-expert>
               <label for="albumArcRadius">Arc radius <output id="albumArcRadius-rv"></output></label>
               <input type="range" id="albumArcRadius" min="0.35" max="0.97" step="0.01" value="0.78" />
             </div>
@@ -324,7 +338,7 @@
               <div class="pad" data-pad="album"></div>
             </div>
             <p class="hint" data-when="!albumArc">Drag the album text on the canvas to move it freely.</p>
-            <p class="hint" data-when="albumArc">Use Arc radius to move the text ring closer to or further from the centre.</p>
+            <p class="hint" data-when="albumArc" data-expert>Use Arc radius to move the text ring closer to or further from the centre.</p>
           </div>
         </details>
 
@@ -347,11 +361,11 @@
               <label for="codeColor">Code colour</label>
               <input type="color" id="codeColor" value="#2c2622" />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="codeBacking">Backing panel (scannability)</label>
               <input type="checkbox" id="codeBacking" checked />
             </div>
-            <div class="field row">
+            <div class="field row" data-expert>
               <label for="codeBackColor">Background colour</label>
               <input type="color" id="codeBackColor" value="#f1e3c4" />
             </div>
@@ -367,7 +381,7 @@
           </div>
         </details>
 
-        <details class="group">
+        <details class="group" hidden>
           <summary>Badges</summary>
           <div class="group-body">
             <div class="field row">

@@ -7,6 +7,12 @@
 
 /* ---------- Defaults / state -------------------------------------- */
 
+const DISC_PRESETS = {
+  lp:     { spindle: false, spindleSize: 0.012, labelSize: 0.17,  grooves: true  },
+  single: { spindle: false, spindleSize: 0.012, labelSize: 0.22,  grooves: true  },
+  cd:     { spindle: true,  spindleSize: 0.061, labelSize: 0.135, grooves: false },
+};
+
 const PRESETS = {
   crate:    { vinylColor: '#2c2622', labelColor: '#cf9d5a', borderColor: '#e7d3a6', grooveColor: '#f3e4c4', textColor: '#3a2c1d', codeColor: '#2c2622', codeBackColor: '#f1e3c4' },
   sage:     { vinylColor: '#2a2c25', labelColor: '#8a9a6f', borderColor: '#d9d3b4', grooveColor: '#e9ecd6', textColor: '#2c3322', codeColor: '#2a2c25', codeBackColor: '#eef0dd' },
@@ -38,7 +44,7 @@ const FONTS = {
 };
 
 const DEFAULTS = {
-  projectName: 'My LP',
+  projectName: 'My LP', discType: 'lp',
   scale: 1, rotate: 0, brightness: 1, contrast: 1, saturate: 1, sepia: 0,
   flipH: false, flipV: false, artX: 0, artY: 0,
   artArea: 'whole', innerRadius: 0.62,
@@ -67,6 +73,7 @@ const DEFAULTS = {
 /* Fields driven by a single binding loop. disp = how the range value reads. */
 const FIELDS = [
   { id: 'projectName',       key: 'projectName',       t: 'str'  },
+  { id: 'discType',          key: 'discType',          t: 'str'  },
   { id: 'scale',             key: 'scale',             t: 'num', disp: 'pct' },
   { id: 'rotate',            key: 'rotate',            t: 'num', disp: 'deg' },
   { id: 'brightness',        key: 'brightness',        t: 'num', disp: 'pct' },
@@ -441,14 +448,6 @@ function drawArt(ctx, S, G) {
   ctx.drawImage(img, -img.width * sc / 2, -img.height * sc / 2, img.width * sc, img.height * sc);
   ctx.restore();
 
-  if (state.artArea === 'inner') {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(0,0,0,.45)';
-    ctx.lineWidth = Math.max(1, S * 0.0022);
-    circle(ctx, G.cx, G.cy, G.innerR);
-    ctx.stroke();
-    ctx.restore();
-  }
 }
 
 function drawGrooves(ctx, S, G, g) {
@@ -481,11 +480,6 @@ function drawLabel(ctx, S, G, g) {
       ctx.stroke();
     }
   }
-  ctx.globalAlpha = g * 0.4;
-  ctx.strokeStyle = 'rgba(0,0,0,.4)';
-  ctx.lineWidth = Math.max(1, S * 0.0022);
-  circle(ctx, G.cx, G.cy, G.labelR);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -576,12 +570,6 @@ function drawSpindle(ctx, S, G) {
   ctx.fillStyle = '#000';
   circle(ctx, G.cx, G.cy, G.spindleR);
   ctx.fill();
-  ctx.restore();
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0,0,0,.5)';
-  ctx.lineWidth = Math.max(1, S * 0.002);
-  circle(ctx, G.cx, G.cy, G.spindleR);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -803,6 +791,15 @@ async function loadProjectFile(file) {
   }
 }
 
+/* ---------- Disc type preset -------------------------------------- */
+
+function applyDiscPreset(type) {
+  const p = DISC_PRESETS[type];
+  if (!p) return;
+  Object.assign(state, p);
+  syncInputs();
+}
+
 /* ---------- Palette ----------------------------------------------- */
 
 function applyPalette(name) {
@@ -838,18 +835,24 @@ function updateLinkType() {
 }
 
 function updateConditional() {
-  document.querySelectorAll('[data-when]').forEach((el) => {
-    let cond = el.dataset.when;
-    const negate = cond.startsWith('!');
-    if (negate) cond = cond.slice(1);
-    let show;
-    if (cond.includes('=')) {
-      const [k, v] = cond.split('=');
-      show = String(state[k]) === v;
-    } else {
-      show = !!state[cond];
+  const expert = $('expertMode') ? $('expertMode').checked : false;
+  document.querySelectorAll('[data-when], [data-expert]').forEach((el) => {
+    let show = true;
+    if (el.hasAttribute('data-when')) {
+      let cond = el.dataset.when;
+      const negate = cond.startsWith('!');
+      if (negate) cond = cond.slice(1);
+      let condShow;
+      if (cond.includes('=')) {
+        const [k, v] = cond.split('=');
+        condShow = String(state[k]) === v;
+      } else {
+        condShow = !!state[cond];
+      }
+      if (negate) condShow = !condShow;
+      show = show && condShow;
     }
-    if (negate) show = !show;
+    if (el.hasAttribute('data-expert') && !expert) show = false;
     el.classList.toggle('hidden', !show);
   });
 }
@@ -860,6 +863,7 @@ function onFieldChange(f, el) {
   else state[f.key] = el.value;
   updateRV(f);
 
+  if (f.key === 'discType') applyDiscPreset(state.discType);
   if (f.key === 'palette' && state.palette !== 'custom') applyPalette(state.palette);
   if (COLOR_KEYS.includes(f.key) && state.palette !== 'custom') {
     state.palette = 'custom';
@@ -916,6 +920,15 @@ function bindControls() {
 
   $('downloadPng').addEventListener('click', () => exportPNG().catch((e) => setStatus('Export failed: ' + e.message)));
   $('downloadZip').addEventListener('click', () => exportZip().catch((e) => setStatus('Export failed: ' + e.message)));
+
+  const expertToggle = $('expertMode');
+  if (expertToggle) {
+    if (localStorage.getItem('rfExpert') === '1') expertToggle.checked = true;
+    expertToggle.addEventListener('change', () => {
+      localStorage.setItem('rfExpert', expertToggle.checked ? '1' : '0');
+      updateConditional();
+    });
+  }
 
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
