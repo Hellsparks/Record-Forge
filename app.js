@@ -418,8 +418,7 @@ function renderScene(ctx, S, opts) {
   // 9. Spindle hole — punches a real transparent cutout, so it goes last
   if (state.spindle) drawSpindle(ctx, S, G);
 
-  // 10. Placement cue, snap guides & selection outline (preview only)
-  if (!state.image && !opts.isExport) drawPlaceholder(ctx, S, G);
+  // 10. Snap guides & selection outline (preview only)
   if (!opts.isExport) drawGuides(ctx, S, G);
   if (!opts.isExport) drawHighlight(ctx, S, G);
 }
@@ -586,15 +585,6 @@ function drawSpindle(ctx, S, G) {
   ctx.restore();
 }
 
-function drawPlaceholder(ctx, S, G) {
-  ctx.save();
-  ctx.setLineDash([S * 0.02, S * 0.02]);
-  ctx.strokeStyle = 'rgba(243,231,203,.5)';
-  ctx.lineWidth = Math.max(2, S * 0.003);
-  circle(ctx, G.cx, G.cy, G.recordR * 0.55);
-  ctx.stroke();
-  ctx.restore();
-}
 
 function drawHighlight(ctx, S, G) {
   const el = state._active || state._hover;
