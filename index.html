@@ -6,7 +6,7 @@
   <title>Record Forge — LP art generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Dancing+Script:wght@400;700&family=DM+Serif+Display&family=Oswald:wght@300;400;700&family=Outfit:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Raleway:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
@@ -21,6 +21,28 @@
           <h1>Record&nbsp;Forge</h1>
           <p class="tagline">Design printable LP record art &mdash; export a circular PNG for HueForge.</p>
         </div>
+      </div>
+      <div class="topbar-controls">
+        <div class="tc-field tc-name">
+          <label for="projectName">Project</label>
+          <div class="tc-name-row">
+            <input type="text" id="projectName" placeholder="My LP" />
+            <button class="btn ghost tc-save" id="tcSaveBtn" type="button">Save</button>
+          </div>
+        </div>
+        <div class="tc-field">
+          <label for="discType">Disc type</label>
+          <select id="discType">
+            <option value="lp">LP 12&Prime;</option>
+            <option value="single">7&Prime; Single</option>
+            <option value="cd">CD</option>
+          </select>
+        </div>
+        <label class="expert-label tc-expert">
+          <input type="checkbox" id="expertMode" />
+          <span>Expert mode</span>
+        </label>
+        <button class="btn ghost tc-reset" id="resetBtn" type="button">Reset</button>
       </div>
     </header>
 
@@ -45,51 +67,41 @@
             </select>
           </label>
           <button class="btn primary" id="downloadPng" type="button">Download circular PNG</button>
-          <button class="btn" id="downloadZip" type="button">Download project (.zip)</button>
         </div>
+
+        <details class="group stage-library">
+          <summary>Library</summary>
+          <div class="group-body">
+            <p class="hint">Saved in your browser &mdash; clearing browser data will delete them.</p>
+            <div id="libraryList"></div>
+            <div class="lib-io">
+              <button class="btn ghost" id="libDownloadBtn" type="button">Download library (.zip)</button>
+              <button class="btn ghost" id="downloadZip" type="button">Download project (.zip)</button>
+              <label class="btn ghost lib-upload-label">
+                Upload library (.zip)
+                <input type="file" id="libUploadInput" accept=".zip" />
+              </label>
+              <label class="btn ghost lib-upload-label">
+                Upload project (.zip / .json)
+                <input type="file" id="projectInput" accept=".zip,.json,application/zip,application/json" />
+              </label>
+            </div>
+          </div>
+        </details>
+
         <p class="hint" style="margin:10px 2px 0;">HueForge 1:1 print sizes &mdash; LP 12&Prime;: <strong>305 mm</strong> &middot; 7&Prime; Single: <strong>175 mm</strong> &middot; CD: <strong>120 mm</strong>. Press <kbd>Ctrl+Z</kbd> to undo a move.</p>
         <p class="status" id="status">Tip: drag the art, text, code &amp; badges right on the canvas to arrange them.</p>
       </section>
 
       <!-- ============ CONTROLS ============ -->
       <section class="panel">
-        <div class="expert-bar">
-          <label class="expert-label">
-            <input type="checkbox" id="expertMode" />
-            <span>Expert mode</span>
-          </label>
-        </div>
-
         <details class="group" open>
-          <summary>Project</summary>
+          <summary>Album art</summary>
           <div class="group-body">
-            <div class="field row">
-              <label for="discType">Disc type</label>
-              <select id="discType">
-                <option value="lp">LP 12&Prime;</option>
-                <option value="single">7&Prime; Single</option>
-                <option value="cd">CD</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="projectName">Project name</label>
-              <input type="text" id="projectName" placeholder="My LP" />
-            </div>
             <div class="field">
               <label for="imageInput">Upload album art</label>
               <input type="file" id="imageInput" accept="image/*" />
             </div>
-            <div class="field">
-              <label for="projectInput">Load project (.zip or .json)</label>
-              <input type="file" id="projectInput" accept=".zip,.json,application/zip,application/json" />
-            </div>
-            <button class="btn ghost" id="resetBtn" type="button">Reset everything</button>
-          </div>
-        </details>
-
-        <details class="group" open>
-          <summary>Album art</summary>
-          <div class="group-body">
             <div class="field">
               <label for="scale">Scale <output id="scale-rv"></output></label>
               <input type="range" id="scale" min="0.2" max="3" step="0.01" value="1" />
@@ -137,7 +149,7 @@
         <details class="group" open>
           <summary>Record &amp; grooves</summary>
           <div class="group-body">
-            <div class="field row">
+            <div class="field row" data-when="!discType=cd">
               <label for="palette">Shop palette</label>
               <select id="palette">
                 <option value="crate">Dusty Crate</option>
@@ -152,7 +164,7 @@
               <label for="vinylColor">Vinyl (black part)</label>
               <input type="color" id="vinylColor" value="#2c2622" />
             </div>
-            <div class="field row">
+            <div class="field row" data-when="!discType=cd">
               <label for="grooves">Show faint grooves</label>
               <input type="checkbox" id="grooves" checked />
             </div>
@@ -164,11 +176,15 @@
               <label for="grooveOpacity">Groove strength <output id="grooveOpacity-rv"></output></label>
               <input type="range" id="grooveOpacity" min="0" max="0.5" step="0.01" value="0.12" />
             </div>
-            <div class="field row">
+            <div class="field row" data-when="!discType=cd">
               <label for="borderToggle">Show border ring</label>
               <input type="checkbox" id="borderToggle" />
             </div>
-            <div class="field row" data-when="borderToggle" data-expert>
+            <div class="field row" data-when="borderToggle,!discType=cd">
+              <label for="borderMatchLabel">Match label colour</label>
+              <input type="checkbox" id="borderMatchLabel" />
+            </div>
+            <div class="field row" data-when="borderToggle,!borderMatchLabel" data-expert>
               <label for="borderColor">Border colour</label>
               <input type="color" id="borderColor" value="#e7d3a6" />
             </div>
@@ -182,28 +198,28 @@
         <details class="group" open>
           <summary>Centre &amp; spindle</summary>
           <div class="group-body">
-            <div class="field row">
+            <div class="field row" data-when="!discType=cd">
               <label for="labelToggle">Solid centre label</label>
               <input type="checkbox" id="labelToggle" checked />
             </div>
-            <p class="hint">Turn the centre label off to leave the centre black &mdash; more room for album art.</p>
+            <p class="hint" data-when="!discType=cd">Turn the centre label off to leave the centre black &mdash; more room for album art.</p>
             <div class="field row" data-when="labelToggle">
               <label for="labelColor">Centre colour</label>
               <input type="color" id="labelColor" value="#cf9d5a" />
             </div>
-            <div class="field" data-when="labelToggle">
+            <div class="field" data-when="labelToggle,!discType=cd">
               <label for="labelSize">Centre size <output id="labelSize-rv"></output></label>
               <input type="range" id="labelSize" min="0.08" max="0.32" step="0.005" value="0.17" />
             </div>
-            <div class="field row" data-when="labelToggle" data-expert>
+            <div class="field row" data-when="labelToggle,!discType=cd" data-expert>
               <label for="labelRings">Faint rings on centre</label>
               <input type="checkbox" id="labelRings" checked />
             </div>
-            <div class="field row">
+            <div class="field row" data-when="!discType=cd">
               <label for="spindle">Spindle hole (centre cutout)</label>
               <input type="checkbox" id="spindle" />
             </div>
-            <div class="field" data-when="spindle">
+            <div class="field" data-when="spindle,!discType=cd">
               <label for="spindleSize">Spindle size <output id="spindleSize-rv"></output></label>
               <input type="range" id="spindleSize" min="0.004" max="0.14" step="0.001" value="0.012" />
             </div>
@@ -217,16 +233,25 @@
               <label for="artist">Artist name</label>
               <input type="text" id="artist" placeholder="Artist name" />
             </div>
-            <div class="field row" data-expert>
+            <div class="field row">
               <label for="artistFont">Font</label>
               <select id="artistFont">
-                <option value="serif">Serif (classic)</option>
-                <option value="display">Vintage display</option>
-                <option value="sans">Modern sans</option>
+                <option value="serif">Serif</option>
+                <option value="playfair">Playfair Display</option>
+                <option value="display">DM Serif Display</option>
+                <option value="bebas">Bebas Neue</option>
+                <option value="sans">Sans</option>
+                <option value="raleway">Raleway</option>
                 <option value="condensed">Condensed</option>
+                <option value="oswald">Oswald</option>
                 <option value="mono">Typewriter</option>
-                <option value="script">Handwritten</option>
+                <option value="script">Brush Script</option>
+                <option value="dancing">Dancing Script</option>
               </select>
+            </div>
+            <div class="btn-row">
+              <button class="toggle is-on" id="artistBold" type="button">Bold</button>
+              <button class="toggle" id="artistItalic" type="button">Italic</button>
             </div>
             <div class="field row" data-expert>
               <label for="artistAlign">Alignment</label>
@@ -283,16 +308,25 @@
               <label for="album">Album title</label>
               <input type="text" id="album" placeholder="Album title" />
             </div>
-            <div class="field row" data-expert>
+            <div class="field row">
               <label for="albumFont">Font</label>
               <select id="albumFont">
-                <option value="serif">Serif (classic)</option>
-                <option value="display">Vintage display</option>
-                <option value="sans">Modern sans</option>
+                <option value="serif">Serif</option>
+                <option value="playfair">Playfair Display</option>
+                <option value="display">DM Serif Display</option>
+                <option value="bebas">Bebas Neue</option>
+                <option value="sans">Sans</option>
+                <option value="raleway">Raleway</option>
                 <option value="condensed">Condensed</option>
+                <option value="oswald">Oswald</option>
                 <option value="mono">Typewriter</option>
-                <option value="script">Handwritten</option>
+                <option value="script">Brush Script</option>
+                <option value="dancing">Dancing Script</option>
               </select>
+            </div>
+            <div class="btn-row">
+              <button class="toggle" id="albumBold" type="button">Bold</button>
+              <button class="toggle" id="albumItalic" type="button">Italic</button>
             </div>
             <div class="field row" data-expert>
               <label for="albumAlign">Alignment</label>
@@ -365,7 +399,7 @@
               <label for="codeBacking">Backing panel (scannability)</label>
               <input type="checkbox" id="codeBacking" checked />
             </div>
-            <div class="field row" data-expert>
+            <div class="field row" data-when="codeBacking" data-expert>
               <label for="codeBackColor">Background colour</label>
               <input type="color" id="codeBackColor" value="#f1e3c4" />
             </div>
@@ -423,9 +457,6 @@
       </section>
     </main>
 
-    <footer class="foot">
-      Runs fully in your browser &mdash; nothing is uploaded. Ready to host on GitHub Pages.
-    </footer>
   </div>
 </body>
 </html>

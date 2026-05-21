@@ -8,9 +8,9 @@
 /* ---------- Defaults / state -------------------------------------- */
 
 const DISC_PRESETS = {
-  lp:     { spindle: false, spindleSize: 0.012, labelSize: 0.17,  grooves: true  },
-  single: { spindle: false, spindleSize: 0.012, labelSize: 0.22,  grooves: true  },
-  cd:     { spindle: true,  spindleSize: 0.061, labelSize: 0.135, grooves: false },
+  lp:     { spindle: false, spindleSize: 0.012, labelSize: 0.17,  grooves: true,  borderToggle: false, borderMatchLabel: false, labelRings: true },
+  single: { spindle: false, spindleSize: 0.012, labelSize: 0.22,  grooves: true,  borderToggle: false, borderMatchLabel: false, labelRings: true },
+  cd:     { spindle: true,  spindleSize: 0.061, labelSize: 0.135, grooves: false, borderToggle: true,  borderMatchLabel: true, borderWidth: 0.012, labelColor: '#ff00cc', borderColor: '#ff00cc', labelRings: false, labelToggle: true },
 };
 
 const PRESETS = {
@@ -33,14 +33,19 @@ function brandPath(name) {
   return _brandCache[name];
 }
 
-/* Canvas text fonts — system stacks plus the one loaded web font (display). */
+/* Canvas text fonts — system stacks plus loaded web fonts. */
 const FONTS = {
   serif:     "Georgia, 'Times New Roman', serif",
+  playfair:  "'Playfair Display', Georgia, serif",
   display:   "'DM Serif Display', Georgia, serif",
+  bebas:     "'Bebas Neue', Impact, sans-serif",
   sans:      "'Helvetica Neue', Arial, sans-serif",
+  raleway:   "'Raleway', 'Helvetica Neue', sans-serif",
   condensed: "'Arial Narrow', 'Helvetica Neue', Arial, sans-serif",
+  oswald:    "'Oswald', 'Arial Narrow', sans-serif",
   mono:      "'Courier New', Courier, monospace",
   script:    "'Brush Script MT', 'Segoe Script', 'Snell Roundhand', cursive",
+  dancing:   "'Dancing Script', 'Brush Script MT', cursive",
 };
 
 const DEFAULTS = {
@@ -50,17 +55,19 @@ const DEFAULTS = {
   artArea: 'whole', innerRadius: 0.62,
   palette: 'crate',
   vinylColor: '#2c2622', grooves: true, grooveColor: '#f3e4c4', grooveOpacity: 0.12,
-  borderToggle: false, borderColor: '#e7d3a6', borderWidth: 0.022,
+  borderToggle: false, borderColor: '#e7d3a6', borderWidth: 0.022, borderMatchLabel: false,
   labelToggle: true, labelColor: '#cf9d5a', labelSize: 0.17, labelRings: true,
   spindle: false, spindleSize: 0.012,
   artist: 'Artist Name', artistFont: 'serif', artistSize: 0.045,
   artistColor: '#3a2c1d', artistAlign: 'center', artistX: 0, artistY: -0.03,
   artistWrap: false, artistWrapWidth: 0.55,
   artistArc: false, artistArcSide: 'top', artistArcRadius: 0.72,
+  artistBold: true, artistItalic: false,
   album: 'Album Title', albumFont: 'serif', albumSize: 0.03,
   albumColor: '#3a2c1d', albumAlign: 'center', albumX: 0, albumY: 0.035,
   albumWrap: false, albumWrapWidth: 0.55,
   albumArc: false, albumArcSide: 'top', albumArcRadius: 0.78,
+  albumBold: false, albumItalic: false,
   link: '', codeStyle: 'qr', codeColor: '#2c2622',
   codeBacking: true, codeBackColor: '#f1e3c4', codeSize: 0.2, codeX: 0, codeY: 0.3,
   badgeSpotify: false, badgeYouTube: false, badgeTidal: false,
@@ -88,6 +95,7 @@ const FIELDS = [
   { id: 'grooveColor',       key: 'grooveColor',       t: 'str'  },
   { id: 'grooveOpacity',     key: 'grooveOpacity',     t: 'num', disp: 'pct' },
   { id: 'borderToggle',      key: 'borderToggle',      t: 'bool' },
+  { id: 'borderMatchLabel',  key: 'borderMatchLabel',  t: 'bool' },
   { id: 'borderColor',       key: 'borderColor',       t: 'str'  },
   { id: 'borderWidth',       key: 'borderWidth',       t: 'num', disp: 'pct' },
   { id: 'labelToggle',       key: 'labelToggle',       t: 'bool' },
@@ -487,10 +495,11 @@ function drawTextLine(ctx, S, G, g, prefix) {
   const txt = state[prefix];
   const fs = state[prefix + 'Size'] * S;
   const fam = FONTS[state[prefix + 'Font']] || FONTS.serif;
-  const weight = prefix === 'artist' ? 600 : 500;
+  const weight = state[prefix + 'Bold'] ? '700' : '400';
+  const style  = state[prefix + 'Italic'] ? 'italic ' : '';
 
   ctx.save();
-  ctx.font = `${weight} ${fs}px ${fam}`;
+  ctx.font = `${style}${weight} ${fs}px ${fam}`;
   ctx.globalAlpha = g;
   ctx.fillStyle = state[prefix + 'Color'];
 
@@ -557,7 +566,7 @@ function drawCode(ctx, S, G, g) {
 function drawBorder(ctx, S, G, g) {
   ctx.save();
   ctx.globalAlpha = g;
-  ctx.strokeStyle = state.borderColor;
+  ctx.strokeStyle = state.borderMatchLabel ? state.labelColor : state.borderColor;
   ctx.lineWidth = G.borderW;
   circle(ctx, G.cx, G.cy, G.recordR - G.borderW / 2);
   ctx.stroke();
@@ -695,12 +704,40 @@ function renderToBlob(size) {
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 
+/* For CD and 7" exports: pad the canvas so HueForge's 200 mm scaling
+   results in the correct physical disc diameter.
+   Disc diameter ≈ size * 0.974  (recordR = 0.487 * S).
+   paddedSize = size * 0.974 * 200 / targetMm                         */
+const HUEFORGE_MM = 200;
+const DISC_REAL_MM = { cd: 120, single: 178 };
+
+async function renderToBlobPadded(size) {
+  const targetMm = DISC_REAL_MM[state.discType];
+  if (!targetMm) return renderToBlob(size); // LP: no padding
+
+  const inner = document.createElement('canvas');
+  inner.width = inner.height = size;
+  renderScene(inner.getContext('2d'), size, { isExport: true });
+
+  const paddedSize = Math.round(size * 0.974 * HUEFORGE_MM / targetMm);
+  const outer = document.createElement('canvas');
+  outer.width = outer.height = paddedSize;
+  const offset = (paddedSize - size) / 2;
+  outer.getContext('2d').drawImage(inner, offset, offset);
+  return new Promise((res) => outer.toBlob(res, 'image/png'));
+}
+
 async function exportPNG() {
   setStatus('Rendering PNG…');
   await ensureCode();
-  const blob = await renderToBlob(Number(state.exportSize));
+  const size = Number(state.exportSize);
+  const blob = await renderToBlobPadded(size);
   downloadBlob(blob, projName() + '.png');
-  setStatus('Saved ' + projName() + '.png — a circular PNG ready for HueForge.');
+  const targetMm = DISC_REAL_MM[state.discType];
+  const note = targetMm
+    ? ` — padded for HueForge 1:1 at ${targetMm} mm`
+    : ' — a circular PNG ready for HueForge';
+  setStatus('Saved ' + projName() + '.png' + note + '.');
 }
 
 async function exportZip() {
@@ -710,13 +747,187 @@ async function exportZip() {
   const zip = new JSZip();
   zip.file('project.json', JSON.stringify(serialize(), null, 2));
   if (state.imageBlob) zip.file(state.imageName || 'album-art.png', state.imageBlob);
-  zip.file('record.png', await renderToBlob(Number(state.exportSize)));
+  zip.file('record.png', await renderToBlobPadded(Number(state.exportSize)));
   zip.file('README.txt',
     'Record Forge project.\n' +
     'Re-open Record Forge and use "Load project" to restore these settings.\n');
   const out = await zip.generateAsync({ type: 'blob' });
   downloadBlob(out, projName() + '.zip');
   setStatus('Saved ' + projName() + '.zip — settings, original art and a rendered PNG.');
+}
+
+/* ---------- Library (IndexedDB) ----------------------------------- */
+
+let _db = null;
+
+function openDB() {
+  if (_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('record-forge', 1);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('projects'))
+        d.createObjectStore('projects', { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess  = (e) => { _db = e.target.result; res(_db); };
+    req.onerror    = (e) => rej(e.target.error);
+  });
+}
+
+function dbTx(mode, fn) {
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction('projects', mode);
+    tx.onerror = (e) => rej(e.target.error);
+    fn(tx.objectStore('projects'), res, rej);
+  }));
+}
+
+function makeThumb() {
+  const tc = document.createElement('canvas');
+  tc.width = tc.height = 200;
+  renderScene(tc.getContext('2d'), 200, { isExport: true });
+  return tc.toDataURL('image/png');
+}
+
+async function libSave() {
+  await ensureCode();
+  const entry = {
+    name: state.projectName || 'Untitled',
+    savedAt: new Date().toISOString(),
+    json: serialize(),
+    imageBlob: state.imageBlob || null,
+    imageName: state.imageName || null,
+    thumb: makeThumb(),
+  };
+  await dbTx('readwrite', (store, res) => { const r = store.add(entry); r.onsuccess = res; });
+  await refreshLibraryUI();
+  setStatus('Project saved to library.');
+}
+
+async function libLoad(id) {
+  const entry = await dbTx('readonly', (store, res, rej) => {
+    const r = store.get(id); r.onsuccess = () => res(r.result); r.onerror = rej;
+  });
+  if (!entry) return;
+  applyProject(entry.json);
+  if (entry.imageBlob) await setImageFromBlob(entry.imageBlob, entry.imageName || 'album-art.png');
+  setStatus('Loaded \u201c' + entry.name + '\u201d from library.');
+}
+
+async function libDelete(id) {
+  await dbTx('readwrite', (store, res) => { const r = store.delete(id); r.onsuccess = res; });
+  await refreshLibraryUI();
+}
+
+async function libGetAll() {
+  return dbTx('readonly', (store, res, rej) => {
+    const r = store.getAll(); r.onsuccess = () => res(r.result); r.onerror = rej;
+  });
+}
+
+async function libDownload() {
+  if (!window.JSZip) { setStatus('ZIP library not loaded.'); return; }
+  const entries = await libGetAll();
+  if (!entries.length) { setStatus('Library is empty — save a project first.'); return; }
+  setStatus('Building library ZIP…');
+  const zip = new JSZip();
+  for (const entry of entries) {
+    const slug = String(entry.id) + '-' + (entry.name || 'project').replace(/[^\w.-]+/g, '-').slice(0, 36);
+    const folder = zip.folder(slug);
+    folder.file('project.json', JSON.stringify(entry.json, null, 2));
+    if (entry.imageBlob) folder.file(entry.imageName || 'album-art.png', entry.imageBlob);
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, 'record-forge-library.zip');
+  setStatus('Library downloaded (' + entries.length + ' project' + (entries.length !== 1 ? 's' : '') + ').');
+}
+
+async function libUpload(file) {
+  if (!window.JSZip) { setStatus('ZIP library not loaded.'); return; }
+  const zip = await JSZip.loadAsync(file);
+  const projectFiles = zip.file(/\/project\.json$/i);
+  if (!projectFiles.length) { setStatus('No projects found in that ZIP.'); return; }
+  const db = await openDB();
+  let count = 0;
+  for (const pf of projectFiles) {
+    const data = JSON.parse(await pf.async('string'));
+    const folderPath = pf.name.replace(/\/project\.json$/i, '') + '/';
+    const imgKey = Object.keys(zip.files).find(
+      k => k.startsWith(folderPath) && /\.(png|jpe?g|webp|gif)$/i.test(k));
+    const imageBlob = imgKey ? await zip.file(imgKey).async('blob') : null;
+    const imageName = imgKey ? imgKey.split('/').pop() : null;
+    const entry = {
+      name: data.projectName || 'Imported',
+      savedAt: data.savedAt || new Date().toISOString(),
+      json: data, imageBlob, imageName,
+    };
+    await new Promise((res, rej) => {
+      const tx = db.transaction('projects', 'readwrite');
+      const r = tx.objectStore('projects').add(entry);
+      r.onsuccess = res; tx.onerror = (e) => rej(e.target.error);
+    });
+    count++;
+  }
+  await refreshLibraryUI();
+  setStatus(count + ' project' + (count !== 1 ? 's' : '') + ' imported into library.');
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function refreshLibraryUI() {
+  const list = $('libraryList');
+  if (!list) return;
+  let entries;
+  try { entries = await libGetAll(); } catch { entries = []; }
+  list.innerHTML = '';
+  if (!entries.length) {
+    list.innerHTML = '<p class="hint">No saved projects yet.</p>';
+    return;
+  }
+  const DISC_LABELS = { lp: 'LP 12\u2033', single: '7\u2033 Single', cd: 'CD' };
+  for (const entry of [...entries].reverse()) {
+    const tile = document.createElement('div');
+    tile.className = 'lib-tile';
+    const date = new Date(entry.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const discLabel = DISC_LABELS[(entry.json || {}).discType] || '';
+    tile.innerHTML =
+      '<div class="lib-thumb-wrap">' +
+        (entry.thumb
+          ? '<img class="lib-thumb" src="' + entry.thumb + '" alt="' + escHtml(entry.name) + '">'
+          : '<div class="lib-thumb lib-thumb-empty"></div>') +
+        (discLabel ? '<span class="lib-disc-badge">' + discLabel + '</span>' : '') +
+        '<button class="lib-del-btn" data-id="' + entry.id + '" title="Delete">\u00d7</button>' +
+      '</div>' +
+      '<div class="lib-tile-info">' +
+        '<span class="lib-name">' + escHtml(entry.name) + '</span>' +
+        '<span class="lib-date">' + date + '</span>' +
+      '</div>';
+    tile.addEventListener('click', (e) => {
+      if (!e.target.closest('.lib-del-btn'))
+        libLoad(entry.id).catch(e => setStatus('Load error: ' + e.message));
+    });
+    tile.querySelector('.lib-del-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm('Delete \u201c' + entry.name + '\u201d from your library?'))
+        await libDelete(entry.id).catch(e => setStatus('Delete error: ' + e.message));
+    });
+    list.appendChild(tile);
+  }
+}
+
+async function initLibrary() {
+  await refreshLibraryUI();
+  $('libSaveBtn').addEventListener('click',
+    () => libSave().catch(e => setStatus('Library error: ' + e.message)));
+  $('libDownloadBtn').addEventListener('click',
+    () => libDownload().catch(e => setStatus('Library error: ' + e.message)));
+  $('libUploadInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) libUpload(f).catch(e => setStatus('Library error: ' + e.message));
+    e.target.value = '';
+  });
 }
 
 /* ---------- Project save / load ----------------------------------- */
@@ -730,8 +941,12 @@ function serialize() {
   o.flipV = state.flipV;
   o.artistX = state.artistX;
   o.artistY = state.artistY;
+  o.artistBold = state.artistBold;
+  o.artistItalic = state.artistItalic;
   o.albumX = state.albumX;
   o.albumY = state.albumY;
+  o.albumBold = state.albumBold;
+  o.albumItalic = state.albumItalic;
   o.codeX = state.codeX;
   o.codeY = state.codeY;
   o.badgeX = state.badgeX;
@@ -742,7 +957,7 @@ function serialize() {
 
 function applyProject(data) {
   for (const f of FIELDS) if (data[f.key] !== undefined) state[f.key] = data[f.key];
-  for (const k of ['artX', 'artY', 'flipH', 'flipV', 'artistX', 'artistY', 'albumX', 'albumY', 'codeX', 'codeY', 'badgeX', 'badgeY'])
+  for (const k of ['artX', 'artY', 'flipH', 'flipV', 'artistX', 'artistY', 'artistBold', 'artistItalic', 'albumX', 'albumY', 'albumBold', 'albumItalic', 'codeX', 'codeY', 'badgeX', 'badgeY'])
     if (data[k] !== undefined) state[k] = data[k];
   if (data.imageName) state.imageName = data.imageName;
   syncInputs();
@@ -828,6 +1043,10 @@ function syncInputs() {
   }
   $('flipH').classList.toggle('is-on', state.flipH);
   $('flipV').classList.toggle('is-on', state.flipV);
+  $('artistBold').classList.toggle('is-on', state.artistBold);
+  $('artistItalic').classList.toggle('is-on', state.artistItalic);
+  $('albumBold').classList.toggle('is-on', state.albumBold);
+  $('albumItalic').classList.toggle('is-on', state.albumItalic);
 }
 
 function updateLinkType() {
@@ -837,22 +1056,27 @@ function updateLinkType() {
 function updateConditional() {
   const expert = $('expertMode') ? $('expertMode').checked : false;
   document.querySelectorAll('[data-when], [data-expert]').forEach((el) => {
+    // Expert mode is a full unlock — show everything.
+    if (expert) { el.classList.remove('hidden'); return; }
+
     let show = true;
     if (el.hasAttribute('data-when')) {
-      let cond = el.dataset.when;
-      const negate = cond.startsWith('!');
-      if (negate) cond = cond.slice(1);
-      let condShow;
-      if (cond.includes('=')) {
-        const [k, v] = cond.split('=');
-        condShow = String(state[k]) === v;
-      } else {
-        condShow = !!state[cond];
+      for (let rawCond of el.dataset.when.split(',')) {
+        rawCond = rawCond.trim();
+        const negate = rawCond.startsWith('!');
+        let cond = negate ? rawCond.slice(1) : rawCond;
+        let condShow;
+        if (cond.includes('=')) {
+          const [k, v] = cond.split('=');
+          condShow = String(state[k]) === v;
+        } else {
+          condShow = !!state[cond];
+        }
+        if (negate) condShow = !condShow;
+        if (!condShow) { show = false; break; }
       }
-      if (negate) condShow = !condShow;
-      show = show && condShow;
     }
-    if (el.hasAttribute('data-expert') && !expert) show = false;
+    if (el.hasAttribute('data-expert')) show = false;
     el.classList.toggle('hidden', !show);
   });
 }
@@ -894,6 +1118,13 @@ function bindControls() {
     $('flipV').classList.toggle('is-on', state.flipV);
     requestRender();
   });
+  for (const key of ['artistBold', 'artistItalic', 'albumBold', 'albumItalic']) {
+    $(key).addEventListener('click', () => {
+      state[key] = !state[key];
+      $(key).classList.toggle('is-on', state[key]);
+      requestRender();
+    });
+  }
   $('centerArt').addEventListener('click', () => {
     state.artX = 0;
     state.artY = 0;
@@ -920,6 +1151,7 @@ function bindControls() {
 
   $('downloadPng').addEventListener('click', () => exportPNG().catch((e) => setStatus('Export failed: ' + e.message)));
   $('downloadZip').addEventListener('click', () => exportZip().catch((e) => setStatus('Export failed: ' + e.message)));
+  $('tcSaveBtn').addEventListener('click', () => libSave().catch((e) => setStatus('Save failed: ' + e.message)));
 
   const expertToggle = $('expertMode');
   if (expertToggle) {
@@ -1105,6 +1337,7 @@ function init() {
   updateConditional();
   requestRender();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(requestRender);
+  initLibrary().catch(e => console.warn('Library init failed:', e));
 }
 
 document.addEventListener('DOMContentLoaded', init);
